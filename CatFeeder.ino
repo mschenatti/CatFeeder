@@ -50,13 +50,17 @@ void setup() {
   digitalWrite(blueLedPin, LOW);
   digitalWrite(greenLedPin, LOW);
   digitalWrite(redLedPin, HIGH);
-  pinMode(enablePin, HIGH);
+  digitalWrite(enablePin, HIGH);
 
   rtc.begin();
   if (rtc.lostPower()) {
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
   
+  Serial.println("<-V-v-V-v-V-v-V-v-V-v-V-v-V->");
+  Serial.println("POWERED ON at:");
+  printDateTime(rtc.now());
+
   enableTimer(true);
 }
 
@@ -82,8 +86,8 @@ void loop() {
     digitalWrite(trigPin, LOW);
     duration = pulseIn(echoPin, HIGH); 
     distance = (duration*.0343)/2;
-    Serial.print("Distance: ");  
-    Serial.println(distance); 
+    //Serial.print("Distance: ");  
+    //Serial.println(distance); 
   }
   
 
@@ -134,6 +138,7 @@ void loop() {
 
 // FUNCTION DESCRIPTION
 void enableTimer (bool enable){
+  DateTime alarm;
   Serial.println("<-O-o-O-o-O-o-O-o-O-o-O-o-O->");
   if(enable){
     Serial.println("Timer enabled at");
@@ -142,7 +147,19 @@ void enableTimer (bool enable){
     rtc.disableAlarm(1);
     rtc.clearAlarm(1);
     
-    DateTime alarm = (rtc.now() + TimeSpan(0, 1, 0, 0));
+    alarm = (rtc.now());
+
+    if( rtc.now().hour() >= 18){
+      Serial.println("Stop for today :-)");
+      alarm = DateTime(alarm.year(), alarm.month(), alarm.day(), 10, 0, 0);
+      alarm = DateTime(alarm + TimeSpan(1, 0, 0, 0));
+    }else if (rtc.now().hour() < 10){
+      Serial.println("Stop for now :-)");
+      alarm = DateTime(alarm.year(), alarm.month(), alarm.day(), 10, 0, 0);
+    }else{
+      alarm = (rtc.now() + TimeSpan(0, 2, 0, 0));
+    }
+    
     Serial.println("Next trigger at:");
     printDateTime(alarm);
 
@@ -163,7 +180,8 @@ void printDateTime(DateTime dt) {
   char dateBuffer[] = "   DD/MM/YYYY   ";
   char timeBuffer[] = "    hh:mm:ss    ";
 
-  Serial.println(dt.toString(dateBuffer));
+  Serial.print(dt.toString(dateBuffer));
+  Serial.print(" --- ");
   Serial.println(dt.toString(timeBuffer));
 }
 
@@ -175,7 +193,10 @@ void setDateTime(String value) {
     rtc.adjust(DateTime(y, m, d, h, min, s));
   }
 
-  Serial.println("Data and Time setted");
+  Serial.println("<-O-o-O-o-O-o-O-o-O-o-O-o-O->");
+  Serial.println("Data and Time setted to");
+  printDateTime(rtc.now());
+
 }
 
 int findZeroPosition(int offsetFromMagnet){
