@@ -1,5 +1,6 @@
 #include <RTClib.h>
 
+/* PINOUT DECLARATION */
 // Stepper Driver
 #define dirPin 2
 #define stepPin 3
@@ -20,16 +21,12 @@
 // Trigger
 #define switchPin 9
 
-#define stepsPerRevolution 200
-
-int sleepTime = 200; //ms of sleep
-
 RTC_DS3231 rtc;
-
 float duration, distance;  
 bool timerEnabled = true;
 
 void setup() {
+  // Serial initialization
   Serial.begin(9600);
 
   // Configure INPUT
@@ -51,6 +48,8 @@ void setup() {
   digitalWrite(greenLedPin, LOW);
   digitalWrite(redLedPin, HIGH);
   digitalWrite(enablePin, HIGH);
+
+  distance = 100.0;
 
   rtc.begin();
   if (rtc.lostPower()) {
@@ -122,11 +121,13 @@ void loop() {
     delay(1000);
   }
 
-  if (distance <= 15.0  && rtc.alarmFired(1)){    
+  if (distance <= 20.0  && rtc.alarmFired(1)){    
     // RED LED
     digitalWrite(blueLedPin, LOW);
     digitalWrite(greenLedPin, LOW);
     digitalWrite(redLedPin, HIGH);
+
+    distance = 100.0;
 
     findZeroPosition(0);
   
