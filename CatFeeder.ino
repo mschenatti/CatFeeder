@@ -1,4 +1,6 @@
 #include <RTClib.h>
+#include <SSD1306Ascii.h>
+#include <SSD1306AsciiWire.h>
 
 /* PINOUT DECLARATION */
 // Stepper Driver
@@ -22,6 +24,12 @@
 #define switchPin 9
 
 RTC_DS3231 rtc;
+SSD1306AsciiWire oled;
+DateTime alarm;
+
+int alarm_index = 0;
+int alarm_counter = 0;
+
 float duration, distance;  
 bool timerEnabled = true;
 
@@ -59,8 +67,19 @@ void setup() {
   Serial.println("<-V-v-V-v-V-v-V-v-V-v-V-v-V->");
   Serial.println("POWERED ON at:");
   printDateTime(rtc.now());
-
   enableTimer(true);
+
+  //Display init
+  oled.begin(&Adafruit128x64, 0x3C);
+  oled.clear();
+  oled.displayRemap(false);          // rotate text 180°
+
+  printOledInfo();
+  oled.setFont(Callibri10);
+  oled.SSD1306Ascii::setCursor(0,2);
+    //oled.println(rtc.now().toString(timeBuffer));
+    oled.print(alarm_counter);
+  //printAlarmInfo();
 }
 
 void loop() {
@@ -131,7 +150,7 @@ void loop() {
 
     findZeroPosition(0);
   
-    enableTimer(true);  
+    enableTimer(true); 
   }
 
   delay (100);  
@@ -139,7 +158,6 @@ void loop() {
 
 // FUNCTION DESCRIPTION
 void enableTimer (bool enable){
-  DateTime alarm;
   Serial.println("<-O-o-O-o-O-o-O-o-O-o-O-o-O->");
   if(enable){
     Serial.println("Timer enabled at");
@@ -174,6 +192,8 @@ void enableTimer (bool enable){
     rtc.clearAlarm(1);
     timerEnabled = false;
   }
+
+  //printAlarmInfo();
 }
 
 
@@ -202,8 +222,14 @@ void setDateTime(String value) {
 
 int findZeroPosition(int offsetFromMagnet){
   Serial.println("<-O-o-O-o-O-o-O-o-O-o-O-o-O->");
-  int exitStrategy = 10000;
+  //int exitStrategy = 10000;
+  int exitStrategy = 100;
 
+  alarm_index = alarm_counter%6 + 1;
+  alarm_counter++;
+
+  printOledInfo();
+  
   Serial.println("Move motor CCW Rotation at:");
   printDateTime(rtc.now());
   
@@ -251,3 +277,36 @@ int findZeroPosition(int offsetFromMagnet){
 
   digitalWrite(enablePin, HIGH);
 }
+
+void printOledInfo(){
+  char timeBuffer[] = "hh:mm ";
+
+  // LIST
+  if(alarm_counter != 0){
+    oled.setFont(Callibri10);
+    oled.SSD1306Ascii::setCursor(0,alarm_index);
+    //oled.println(rtc.now().toString(timeBuffer));
+    oled.print(alarm_counter);
+  }else{
+    // HEADER
+    oled.setFont(Callibri10);
+    oled.SSD1306Ascii::setCursor(0,0);
+    oled.print(" TRG:");
+  }
+
+  // COUNTER
+  oled.setFont(CalBlk36);
+  oled.SSD1306Ascii::setCursor(70,3);
+  oled.print(alarm_counter);
+  oled.print(" ");
+}
+
+void printAlarmInfo(){
+  // ALARM
+  oled.setFont(Callibri15); 
+  oled.SSD1306Ascii::setCursor(50,0);
+  oled.print("Next: ");
+  char alarmBuffer[] = "hh:mm";
+  oled.print(alarm.toString(alarmBuffer));
+}
+
