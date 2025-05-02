@@ -25,7 +25,8 @@
 
 RTC_DS3231 rtc;
 SSD1306AsciiWire oled;
-DateTime alarm;
+DateTime feedAlarm;
+DateTime dayAlarm;
 
 int alarm_index = 0;
 int alarm_counter = 0;
@@ -67,19 +68,15 @@ void setup() {
   Serial.println("<-V-v-V-v-V-v-V-v-V-v-V-v-V->");
   Serial.println("POWERED ON at:");
   printDateTime(rtc.now());
-  enableTimer(true);
+  setFeedAlarm(true);
 
   //Display init
   oled.begin(&Adafruit128x64, 0x3C);
   oled.clear();
   oled.displayRemap(false);          // rotate text 180°
-
+  
   printOledInfo();
-  oled.setFont(Callibri10);
-  oled.SSD1306Ascii::setCursor(0,2);
-    //oled.println(rtc.now().toString(timeBuffer));
-    oled.print(alarm_counter);
-  //printAlarmInfo();
+  printAlarmInfo();
 }
 
 void loop() {
@@ -107,6 +104,15 @@ void loop() {
     //Serial.print("Distance: ");  
     //Serial.println(distance); 
   }
+
+  if(rtc.alarmFired(2)){
+    alarm_index = 0;
+    alarm_counter = 0;
+    oled.clear();
+    printOledInfo();
+    printAlarmInfo();
+    setDayAlarm();
+  }
   
 
   // If Button pressed
@@ -123,19 +129,11 @@ void loop() {
     }
 
     if(longPress == true && timerEnabled == true){
-      // BLUE LED
-      digitalWrite(blueLedPin, HIGH);
-      digitalWrite(greenLedPin, LOW);
-      digitalWrite(redLedPin, LOW);
-      enableTimer(false);
+      setFeedAlarm(false);
     }else if(longPress == true && timerEnabled == false){
-      // LED OFF
-      digitalWrite(blueLedPin, LOW);
-      digitalWrite(greenLedPin, LOW);
-      digitalWrite(redLedPin, HIGH);
-      enableTimer(true);
+      setFeedAlarm(true);
     }else{
-      findZeroPosition(0);
+      feed(0);
     }
     delay(1000);
   }
@@ -148,55 +146,15 @@ void loop() {
 
     distance = 100.0;
 
-    findZeroPosition(0);
+    feed(0);
   
-    enableTimer(true); 
+    setFeedAlarm(true); 
   }
 
   delay (100);  
 }
 
 // FUNCTION DESCRIPTION
-void enableTimer (bool enable){
-  Serial.println("<-O-o-O-o-O-o-O-o-O-o-O-o-O->");
-  if(enable){
-    Serial.println("Timer enabled at");
-    printDateTime(rtc.now());
-
-    rtc.disableAlarm(1);
-    rtc.clearAlarm(1);
-    
-    alarm = (rtc.now());
-
-    if( rtc.now().hour() >= 18){
-      Serial.println("Stop for today :-)");
-      alarm = DateTime(alarm.year(), alarm.month(), alarm.day(), 10, 0, 0);
-      alarm = DateTime(alarm + TimeSpan(1, 0, 0, 0));
-    }else if (rtc.now().hour() < 10){
-      Serial.println("Stop for now :-)");
-      alarm = DateTime(alarm.year(), alarm.month(), alarm.day(), 10, 0, 0);
-    }else{
-      alarm = (rtc.now() + TimeSpan(0, 2, 0, 0));
-    }
-    
-    Serial.println("Next trigger at:");
-    printDateTime(alarm);
-
-    rtc.setAlarm1(alarm, DS3231_A1_Hour);
-    timerEnabled = true;
-  } else {
-    Serial.println("Timer disabled at");
-    printDateTime(rtc.now());
-
-    rtc.disableAlarm(1);
-    rtc.clearAlarm(1);
-    timerEnabled = false;
-  }
-
-  //printAlarmInfo();
-}
-
-
 void printDateTime(DateTime dt) {
   char dateBuffer[] = "   DD/MM/YYYY   ";
   char timeBuffer[] = "    hh:mm:ss    ";
@@ -214,16 +172,79 @@ void setDateTime(String value) {
     rtc.adjust(DateTime(y, m, d, h, min, s));
   }
 
+  //setFeedAlarm(true);
+  setDayAlarm();
+
   Serial.println("<-O-o-O-o-O-o-O-o-O-o-O-o-O->");
   Serial.println("Data and Time setted to");
   printDateTime(rtc.now());
 
 }
 
-int findZeroPosition(int offsetFromMagnet){
+void setFeedAlarm (bool enable){
   Serial.println("<-O-o-O-o-O-o-O-o-O-o-O-o-O->");
-  //int exitStrategy = 10000;
-  int exitStrategy = 100;
+  if(enable){
+    // RED LED
+    digitalWrite(blueLedPin, LOW);
+    digitalWrite(greenLedPin, LOW);
+    digitalWrite(redLedPin, HIGH);
+
+    Serial.println("Timer enabled at");
+    printDateTime(rtc.now());
+
+    rtc.disableAlarm(1);
+    rtc.clearAlarm(1);
+    
+    feedAlarm = (rtc.now());
+
+    if( rtc.now().hour() >= 18){
+      Serial.println("Stop for today :-)");
+      feedAlarm = DateTime(feedAlarm.year(), feedAlarm.month(), feedAlarm.day(), 10, 0, 0);
+      feedAlarm = DateTime(feedAlarm + TimeSpan(1, 0, 0, 0));
+    }else if (rtc.now().hour() < 10){
+      Serial.println("Stop for now :-)");
+      feedAlarm = DateTime(feedAlarm.year(), feedAlarm.month(), feedAlarm.day(), 10, 0, 0);
+    }else{
+      feedAlarm = (rtc.now() + TimeSpan(0, 2, 0, 0));
+    }
+    
+    Serial.println("Next trigger at:");
+    printDateTime(feedAlarm);
+
+    rtc.setAlarm1(feedAlarm, DS3231_A1_Hour);
+    timerEnabled = true;
+  } else {
+    // BLUE LED
+    digitalWrite(blueLedPin, HIGH);
+    digitalWrite(greenLedPin, LOW);
+    digitalWrite(redLedPin, LOW);
+
+    Serial.println("Timer disabled at");
+    printDateTime(rtc.now());
+
+    rtc.disableAlarm(1);
+    rtc.clearAlarm(1);
+
+    feedAlarm = DateTime(0,0,0,0,0,0);
+
+    timerEnabled = false;
+  }
+
+  printAlarmInfo();
+}
+
+void setDayAlarm(){
+  rtc.disableAlarm(2);
+  rtc.clearAlarm(2);
+  dayAlarm = DateTime(rtc.now().year(), rtc.now().month(), rtc.now().day(), 0, 0, 0);
+  dayAlarm = DateTime(dayAlarm + TimeSpan(1, 0, 0, 0));
+  rtc.setAlarm2(dayAlarm, DS3231_A2_Day);
+}
+
+int feed(int offsetFromMagnet){
+  Serial.println("<-O-o-O-o-O-o-O-o-O-o-O-o-O->");
+  int exitStrategy = 10000;
+  //int exitStrategy = 100;
 
   alarm_index = alarm_counter%6 + 1;
   alarm_counter++;
@@ -285,8 +306,9 @@ void printOledInfo(){
   if(alarm_counter != 0){
     oled.setFont(Callibri10);
     oled.SSD1306Ascii::setCursor(0,alarm_index);
-    //oled.println(rtc.now().toString(timeBuffer));
     oled.print(alarm_counter);
+    oled.print("-");
+    oled.print(rtc.now().toString(timeBuffer));
   }else{
     // HEADER
     oled.setFont(Callibri10);
@@ -304,9 +326,15 @@ void printOledInfo(){
 void printAlarmInfo(){
   // ALARM
   oled.setFont(Callibri15); 
-  oled.SSD1306Ascii::setCursor(50,0);
-  oled.print("Next: ");
-  char alarmBuffer[] = "hh:mm";
-  oled.print(alarm.toString(alarmBuffer));
+   oled.SSD1306Ascii::setCursor(50,0);
+
+  if(feedAlarm.day() == 0){
+    oled.print("Disarmed ");    
+  }else{
+    oled.print("Next: ");
+    char alarmBuffer[] = "hh:mm";
+    oled.print(feedAlarm.toString(alarmBuffer));
+
+  }
 }
 
