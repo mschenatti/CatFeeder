@@ -16,6 +16,9 @@
 // Magnet
 #define magnetoPin 8
 
+// ESP8266
+#define feedNotificationPin 10
+
 // HC-SR04
 #define trigPin 11  
 #define echoPin 12 
@@ -51,12 +54,16 @@ void setup() {
   pinMode(dirPin, OUTPUT);
   pinMode(enablePin, OUTPUT);
   pinMode(trigPin, OUTPUT); 
+  pinMode(feedNotificationPin, OUTPUT);
   
   // Write OUTPUT
-  digitalWrite(blueLedPin, LOW);
+  // BLUE LED
+  digitalWrite(blueLedPin, HIGH);
   digitalWrite(greenLedPin, LOW);
-  digitalWrite(redLedPin, HIGH);
+  digitalWrite(redLedPin, LOW);
+
   digitalWrite(enablePin, HIGH);
+  digitalWrite(feedNotificationPin, LOW);
 
   distance = 100.0;
 
@@ -139,10 +146,10 @@ void loop() {
   }
 
   if (distance <= 20.0  && rtc.alarmFired(1)){    
-    // RED LED
-    digitalWrite(blueLedPin, LOW);
+    // BLUE LED
+    digitalWrite(blueLedPin, HIGH);
     digitalWrite(greenLedPin, LOW);
-    digitalWrite(redLedPin, HIGH);
+    digitalWrite(redLedPin, LOW);
 
     distance = 100.0;
 
@@ -184,10 +191,10 @@ void setDateTime(String value) {
 void setFeedAlarm (bool enable){
   Serial.println("<-O-o-O-o-O-o-O-o-O-o-O-o-O->");
   if(enable){
-    // RED LED
-    digitalWrite(blueLedPin, LOW);
+    // BLUE LED
+    digitalWrite(blueLedPin, HIGH);
     digitalWrite(greenLedPin, LOW);
-    digitalWrite(redLedPin, HIGH);
+    digitalWrite(redLedPin, LOW);
 
     Serial.println("Timer enabled at");
     printDateTime(rtc.now());
@@ -214,10 +221,10 @@ void setFeedAlarm (bool enable){
     rtc.setAlarm1(feedAlarm, DS3231_A1_Hour);
     timerEnabled = true;
   } else {
-    // BLUE LED
-    digitalWrite(blueLedPin, HIGH);
+    // RED LED
+    digitalWrite(blueLedPin, LOW);
     digitalWrite(greenLedPin, LOW);
-    digitalWrite(redLedPin, LOW);
+    digitalWrite(redLedPin, HIGH);
 
     Serial.println("Timer disabled at");
     printDateTime(rtc.now());
@@ -226,6 +233,7 @@ void setFeedAlarm (bool enable){
     rtc.clearAlarm(1);
 
     feedAlarm = DateTime(0,0,0,0,0,0);
+    rtc.setAlarm1(feedAlarm, DS3231_A1_Day);
 
     timerEnabled = false;
   }
@@ -256,6 +264,11 @@ int feed(int offsetFromMagnet){
   
   digitalWrite(enablePin, LOW);
   digitalWrite(dirPin, LOW);
+
+  // Send notification to ESP8266
+  digitalWrite(feedNotificationPin, HIGH);
+  delay(200);
+  digitalWrite(feedNotificationPin, LOW);
 
   Serial.println("Magnet Open");
   // Spin the stepper motor CCW until magnet is found
@@ -329,7 +342,7 @@ void printAlarmInfo(){
    oled.SSD1306Ascii::setCursor(50,0);
 
   if(feedAlarm.day() == 0){
-    oled.print("Disarmed ");    
+    oled.print("-Disarmed-");    
   }else{
     oled.print("Next: ");
     char alarmBuffer[] = "hh:mm";
